@@ -24,12 +24,12 @@ export default defineConfig({
 		hmr: host
 			? {
 					host,
-					port: 5174,
+					port: 1421,
 					protocol: "ws",
 				}
 			: undefined,
 		host: host || false,
-		port: 5173,
+		port: 1420,
 		strictPort: true,
 		watch: {
 			ignored: ["**/src-tauri/**"],
