@@ -1,5 +1,5 @@
 {
-	"name": "template",
+	"name": "asobi_launcher",
 	"private": true,
 	"type": "module",
 	"packageManager": "bun@1.3.0",

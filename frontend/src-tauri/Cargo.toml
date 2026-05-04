@@ -1,12 +1,12 @@
 [package]
-name = "template"
+name = "asobi-launcher"
 version = "1.0.0"
-description = "Personal Finance App"
+description = "Asobi Launcher"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "template_lib"
+name = "asobi_launcher_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

@@ -9,7 +9,7 @@
 				"fullscreen": false,
 				"height": 800,
 				"resizable": true,
-				"title": "Example",
+				"title": "Asobi Launcher",
 				"width": 400
 			}
 		],
@@ -32,7 +32,7 @@
 		],
 		"targets": "all"
 	},
-	"identifier": "com.example.app",
-	"productName": "Example",
+	"identifier": "com.hyoretsu.asobi_launcher",
+	"productName": "Asobi Launcher",
 	"version": "0.1.0"
 }
