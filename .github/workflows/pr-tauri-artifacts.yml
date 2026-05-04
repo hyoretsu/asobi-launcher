@@ -1,0 +1,82 @@
+name: PR Tauri Artifacts Check
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/pr-tauri-artifacts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform.name }} artifact
+    runs-on: ${{ matrix.platform.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: windows
+            runs_on: windows-latest
+            artifact_glob: frontend/src-tauri/target/release/bundle/msi/*.msi
+            build_cmd: bunx tauri build
+          - name: linux-appimage
+            runs_on: ubuntu-22.04
+            artifact_glob: frontend/src-tauri/target/release/bundle/appimage/*.AppImage
+            build_cmd: bunx tauri build
+          - name: android-apk
+            runs_on: ubuntu-22.04
+            artifact_glob: frontend/src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk
+            build_cmd: bunx tauri android build --apk
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Android SDK
+        if: matrix.platform.name == 'android-apk'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build dependencies
+        if: matrix.platform.name == 'android-apk'
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.3.11579264"
+          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+
+      - name: Install Linux build dependencies
+        if: matrix.platform.name == 'linux-appimage'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build artifact
+        run: ${{ matrix.platform.build_cmd }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-${{ matrix.platform.name }}
+          path: ${{ matrix.platform.artifact_glob }}
+          if-no-files-found: error
