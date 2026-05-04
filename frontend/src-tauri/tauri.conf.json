@@ -16,8 +16,8 @@
 		"withGlobalTauri": true
 	},
 	"build": {
-		"beforeBuildCommand": "bun build",
-		"beforeDevCommand": "bun dev",
+		"beforeBuildCommand": "bun turbo -F frontend build",
+		"beforeDevCommand": "bun turbo -F frontend dev",
 		"devUrl": "http://localhost:1420",
 		"frontendDist": "../dist"
 	},
