@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
+import Database from "@tauri-apps/plugin-sql";
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,31 +17,93 @@ interface Game {
 	hotkey: string;
 }
 
+const DB_URL = "sqlite:asobi.sqlite";
+
 function IndexPage() {
+	const [db, setDb] = useState<Database | null>(null);
 	const [games, setGames] = useState<Game[]>([]);
 	const [form, setForm] = useState<Game>({ args: "", command: "", env: "", hotkey: "", id: "", name: "" });
-	const [selectedId, setSelectedId] = useState<string>("");
-	const [runtime, setRuntime] = useState<number>(0);
+	const [selectedId, setSelectedId] = useState("");
+	const [runtime, setRuntime] = useState(0);
 
 	const selectedGame = useMemo(() => games.find(g => g.id === selectedId), [games, selectedId]);
 
-	const addGame = (event: FormEvent) => {
+	useEffect(() => {
+		const setup = async () => {
+			const database = await Database.load(DB_URL);
+			await database.execute(
+				"CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, name TEXT, command TEXT, args TEXT, env TEXT, hotkey TEXT)",
+			);
+			await database.execute(
+				"CREATE TABLE IF NOT EXISTS game_runtime (game_id TEXT PRIMARY KEY, seconds INTEGER NOT NULL DEFAULT 0)",
+			);
+			const rows = await database.select<Game[]>(
+				"SELECT id, name, command, args, env, hotkey FROM games ORDER BY rowid DESC",
+			);
+			setGames(rows);
+			setDb(database);
+		};
+		setup();
+	}, []);
+
+	const persistGame = async (game: Game) => {
+		if (!db) return;
+		await db.execute("INSERT INTO games (id, name, command, args, env, hotkey) VALUES (?, ?, ?, ?, ?, ?)", [
+			game.id,
+			game.name,
+			game.command,
+			game.args,
+			game.env,
+			game.hotkey,
+		]);
+	};
+
+	const addSeconds = async (gameId: string, seconds: number) => {
+		if (!db) return;
+		await db.execute(
+			"INSERT INTO game_runtime (game_id, seconds) VALUES (?, ?) ON CONFLICT(game_id) DO UPDATE SET seconds = seconds + excluded.seconds",
+			[gameId, seconds],
+		);
+		const [row] = await db.select<Array<{ seconds: number }>>(
+			"SELECT seconds FROM game_runtime WHERE game_id = ?",
+			[gameId],
+		);
+		setRuntime(row?.seconds ?? 0);
+	};
+
+	const getRuntime = async (gameId: string) => {
+		if (!db) return;
+		const [row] = await db.select<Array<{ seconds: number }>>(
+			"SELECT seconds FROM game_runtime WHERE game_id = ?",
+			[gameId],
+		);
+		setRuntime(row?.seconds ?? 0);
+	};
+
+	const addGame = async (event: FormEvent) => {
 		event.preventDefault();
 		if (!form.name.trim() || !form.command.trim()) return;
-		const newGame = { ...form, id: crypto.randomUUID() };
-		setGames(prev => [newGame, ...prev]);
+		const game = { ...form, id: crypto.randomUUID() };
+		await persistGame(game);
+		setGames(prev => [game, ...prev]);
 		setForm({ args: "", command: "", env: "", hotkey: "", id: "", name: "" });
 	};
 
 	const launchGame = async (game: Game) => {
-		const seconds = await invoke<number>("launch_game", { game });
-		setRuntime(seconds);
 		setSelectedId(game.id);
-	};
+		await getRuntime(game.id);
 
-	const refreshRuntime = async () => {
-		const seconds = await invoke<number>("get_runtime_seconds", { gameId: selectedId });
-		setRuntime(seconds);
+		const pid = await invoke<number>("launch_game", { game });
+		const startedAt = Date.now();
+
+		const poll = window.setInterval(async () => {
+			const running = await invoke<boolean>("is_game_running", { pid });
+			if (!running) {
+				window.clearInterval(poll);
+				const elapsedSeconds = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
+				await addSeconds(game.id, elapsedSeconds);
+			}
+		}, 1000);
 	};
 
 	return (
@@ -50,7 +113,7 @@ function IndexPage() {
 					<CardHeader>
 						<CardTitle className="text-2xl">Asobi Launcher</CardTitle>
 						<CardDescription>
-							Layout desktop responsivo para 16:9 e 21:9 com redimensionamento fluido.
+							Desktop-first, responsivo para 16:9 / 21:9 com redimensionamento.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-3">
@@ -70,7 +133,6 @@ function IndexPage() {
 						</div>
 					</CardContent>
 				</Card>
-
 				<div className="space-y-6">
 					<Card className="border-slate-800 bg-slate-900/70">
 						<CardHeader>
@@ -84,19 +146,11 @@ function IndexPage() {
 								</Label>
 								<Label>
 									Comando
-									<Input
-										onChange={e => setForm({ ...form, command: e.target.value })}
-										placeholder="ex: /usr/bin/game"
-										value={form.command}
-									/>
+									<Input onChange={e => setForm({ ...form, command: e.target.value })} value={form.command} />
 								</Label>
 								<Label>
 									Args
-									<Input
-										onChange={e => setForm({ ...form, args: e.target.value })}
-										placeholder="--windowed --lang=pt"
-										value={form.args}
-									/>
+									<Input onChange={e => setForm({ ...form, args: e.target.value })} value={form.args} />
 								</Label>
 								<Label>
 									Variáveis de ambiente
@@ -108,11 +162,7 @@ function IndexPage() {
 								</Label>
 								<Label>
 									Atalho
-									<Input
-										onChange={e => setForm({ ...form, hotkey: e.target.value })}
-										placeholder="Ctrl+Shift+1"
-										value={form.hotkey}
-									/>
+									<Input onChange={e => setForm({ ...form, hotkey: e.target.value })} value={form.hotkey} />
 								</Label>
 								<Button className="w-full" type="submit">
 									Salvar jogo
@@ -120,24 +170,25 @@ function IndexPage() {
 							</form>
 						</CardContent>
 					</Card>
-
 					<Card className="border-slate-800 bg-slate-900/70">
 						<CardHeader>
-							<CardTitle>Monitoramento / tempo aberto</CardTitle>
+							<CardTitle>Tempo acumulado</CardTitle>
 						</CardHeader>
-						<CardContent className="space-y-2 text-sm">
+						<CardContent>
 							<p>
 								Jogo ativo: <strong>{selectedGame?.name ?? "nenhum"}</strong>
 							</p>
 							<p>
-								Tempo acumulado: <strong>{runtime}s</strong>
+								Total salvo em SQLite: <strong>{runtime}s</strong>
 							</p>
-							<Button disabled={!selectedId} onClick={refreshRuntime} type="button" variant="outline">
-								Atualizar tempo
+							<Button
+								disabled={!selectedId}
+								onClick={() => getRuntime(selectedId)}
+								type="button"
+								variant="outline"
+							>
+								Atualizar
 							</Button>
-							<p className="text-slate-400">
-								A app segue em background/tray e persiste o tempo em SQLite via backend Tauri.
-							</p>
 						</CardContent>
 					</Card>
 				</div>

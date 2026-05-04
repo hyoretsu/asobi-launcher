@@ -36,7 +36,8 @@
 		"styletron-react": "^6.1.1",
 		"tailwind-merge": "^3.5.0",
 		"zod": "^4.4.2",
-		"zustand": "^5.0.12"
+		"zustand": "^5.0.12",
+		"@tauri-apps/plugin-sql": "^2.0.0"
 	},
 	"devDependencies": {
 		"@hyoretsu/configs": "^1.2.33",
