@@ -6,11 +6,12 @@
 		},
 		"windows": [
 			{
-				"fullscreen": false,
-				"height": 800,
+				"height": 810,
+				"minHeight": 620,
+				"minWidth": 1100,
 				"resizable": true,
-				"title": "Example",
-				"width": 400
+				"title": "Asobi Launcher",
+				"width": 1440
 			}
 		],
 		"withGlobalTauri": true
@@ -32,7 +33,7 @@
 		],
 		"targets": "all"
 	},
-	"identifier": "com.example.app",
-	"productName": "Example",
+	"identifier": "com.asobi.launcher",
+	"productName": "Asobi Launcher",
 	"version": "0.1.0"
 }
