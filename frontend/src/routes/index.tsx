@@ -1,99 +1,68 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
-import Database from "@tauri-apps/plugin-sql";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { GameEntity } from "@/lib/sqlite";
+import { runSqliteMigrations, SqliteGameRepository, SqliteRuntimeRepository } from "@/lib/sqlite";
 
-interface Game {
-	id: string;
-	name: string;
-	command: string;
-	args: string;
-	env: string;
-	hotkey: string;
-}
-
-const DB_URL = "sqlite:asobi.sqlite";
+const gameRepository = new SqliteGameRepository();
+const runtimeRepository = new SqliteRuntimeRepository();
 
 function IndexPage() {
-	const [db, setDb] = useState<Database | null>(null);
-	const [games, setGames] = useState<Game[]>([]);
-	const [form, setForm] = useState<Game>({ args: "", command: "", env: "", hotkey: "", id: "", name: "" });
+	const [games, setGames] = useState<GameEntity[]>([]);
+	const [form, setForm] = useState<GameEntity>({
+		args: "",
+		command: "",
+		env: "",
+		hotkey: "",
+		id: "",
+		name: "",
+	});
 	const [selectedId, setSelectedId] = useState("");
 	const [runtime, setRuntime] = useState(0);
 
 	const selectedGame = useMemo(() => games.find(g => g.id === selectedId), [games, selectedId]);
 
 	useEffect(() => {
-		const setup = async () => {
-			const database = await Database.load(DB_URL);
-			await database.execute(
-				"CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, name TEXT, command TEXT, args TEXT, env TEXT, hotkey TEXT)",
-			);
-			await database.execute(
-				"CREATE TABLE IF NOT EXISTS game_runtime (game_id TEXT PRIMARY KEY, seconds INTEGER NOT NULL DEFAULT 0)",
-			);
-			const rows = await database.select<Game[]>(
-				"SELECT id, name, command, args, env, hotkey FROM games ORDER BY rowid DESC",
-			);
-			setGames(rows);
-			setDb(database);
+		const bootstrap = async () => {
+			await runSqliteMigrations();
+			const loadedGames = await gameRepository.listGames();
+			setGames(loadedGames);
 		};
-		setup();
+
+		bootstrap();
 	}, []);
-
-	const persistGame = async (game: Game) => {
-		if (!db) return;
-		await db.execute("INSERT INTO games (id, name, command, args, env, hotkey) VALUES (?, ?, ?, ?, ?, ?)", [
-			game.id,
-			game.name,
-			game.command,
-			game.args,
-			game.env,
-			game.hotkey,
-		]);
-	};
-
-	const addSeconds = async (gameId: string, seconds: number) => {
-		if (!db) return;
-		await db.execute(
-			"INSERT INTO game_runtime (game_id, seconds) VALUES (?, ?) ON CONFLICT(game_id) DO UPDATE SET seconds = seconds + excluded.seconds",
-			[gameId, seconds],
-		);
-		const [row] = await db.select<Array<{ seconds: number }>>(
-			"SELECT seconds FROM game_runtime WHERE game_id = ?",
-			[gameId],
-		);
-		setRuntime(row?.seconds ?? 0);
-	};
-
-	const getRuntime = async (gameId: string) => {
-		if (!db) return;
-		const [row] = await db.select<Array<{ seconds: number }>>(
-			"SELECT seconds FROM game_runtime WHERE game_id = ?",
-			[gameId],
-		);
-		setRuntime(row?.seconds ?? 0);
-	};
 
 	const addGame = async (event: FormEvent) => {
 		event.preventDefault();
 		if (!form.name.trim() || !form.command.trim()) return;
+
 		const game = { ...form, id: crypto.randomUUID() };
-		await persistGame(game);
+		await gameRepository.createGame(game);
 		setGames(prev => [game, ...prev]);
 		setForm({ args: "", command: "", env: "", hotkey: "", id: "", name: "" });
 	};
 
-	const launchGame = async (game: Game) => {
-		setSelectedId(game.id);
-		await getRuntime(game.id);
+	const loadRuntime = async (gameId: string) => {
+		const seconds = await runtimeRepository.getRuntime(gameId);
+		setRuntime(seconds);
+	};
 
-		const pid = await invoke<number>("launch_game", { game });
+	const launchGame = async (game: GameEntity) => {
+		setSelectedId(game.id);
+		await loadRuntime(game.id);
+
+		const pid = await invoke<number>("launch_game", {
+			game: {
+				args: game.args,
+				command: game.command,
+				env: game.env,
+			},
+		});
 		const startedAt = Date.now();
 
 		const poll = window.setInterval(async () => {
@@ -101,7 +70,8 @@ function IndexPage() {
 			if (!running) {
 				window.clearInterval(poll);
 				const elapsedSeconds = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
-				await addSeconds(game.id, elapsedSeconds);
+				await runtimeRepository.addSeconds(game.id, elapsedSeconds);
+				await loadRuntime(game.id);
 			}
 		}, 1000);
 	};
@@ -183,7 +153,7 @@ function IndexPage() {
 							</p>
 							<Button
 								disabled={!selectedId}
-								onClick={() => getRuntime(selectedId)}
+								onClick={() => loadRuntime(selectedId)}
 								type="button"
 								variant="outline"
 							>
