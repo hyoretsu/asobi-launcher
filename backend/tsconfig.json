@@ -1,0 +1,11 @@
+// biome-ignore-all assist/source/useSortedKeys: order matters here
+{
+	"compilerOptions": {
+		"paths": {
+			"@utils": ["./src/shared/utils"],
+			"@utils/*": ["./src/shared/utils/*"],
+			"@/*": ["./src/*"]
+		}
+	},
+	"extends": ["@hyoretsu/configs/ts"]
+}

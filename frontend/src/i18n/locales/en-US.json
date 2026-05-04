@@ -1,0 +1,33 @@
+{
+	"common": {
+		"auth": {
+			"defaultUserName": "Demo user",
+			"errors": {
+				"invalidCredentials": "Use any email and a password with at least 6 characters."
+			}
+		},
+		"home": {
+			"auth": {
+				"description": "Backed by a persisted Zustand store.",
+				"emailLabel": "Email",
+				"passwordLabel": "Password",
+				"signedInAs": "Signed in as {{name}}",
+				"signIn": "Sign in locally",
+				"signingIn": "Signing in...",
+				"signOut": "Sign out",
+				"title": "Auth example"
+			},
+			"hero": {
+				"badge": "Frontend template",
+				"description": "This starter keeps the frontend intentionally small. Real apps can call generated hooks directly from routes or focused components, without a hand-written API wrapper in between.",
+				"title": "Simple route, local auth state, and room for generated API hooks."
+			},
+			"pattern": {
+				"description": "Keep template examples boring, direct, and easy to replace.",
+				"firstParagraph": "Put app-level state in <storePath>src/stores</storePath>, route UI in <routesPath>src/routes</routesPath>, and provider setup in <providersPath>src/providers.tsx</providersPath>.",
+				"secondParagraph": "When a real API exists, keep <apiPath>src/lib/api</apiPath> for generated backend hooks and call those hooks from the route or component that owns the screen.",
+				"title": "Use this pattern"
+			}
+		}
+	}
+}

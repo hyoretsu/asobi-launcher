@@ -1,0 +1,48 @@
+!.gitkeep
+tmp/
+.cache
+*.log
+.expo
+!opengraph.*
+certificates
+
+# Artifacts
+build/
+generated/
+dist/
+out/
+
+# Dependencies
+node_modules/
+.pnp/
+.pnpm-store
+.pnp.js
+
+# Env files
+.env
+.env*.local
+
+# IDEs
+.idea
+.vscode
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# Vendor
+.codex
+.env.iranti
+.env.iranti.local
+.next
+.shopify
+.turbo
+.vercel
+.vinext
+next-env.d.ts
+
+# Test files
+coverage/
+
+# TypeScript
+*.tsbuildinfo

@@ -1,0 +1,18 @@
+{
+	"recommendations": [
+		"biomejs.biome",
+		"bradlc.vscode-tailwindcss",
+		"Cardinal90.multi-cursor-case-preserve",
+		"christian-kohler.path-intellisense",
+		"dbaeumer.vscode-eslint",
+		"EditorConfig.EditorConfig",
+		"GraphQL.vscode-graphql",
+		"maptz.camelcasenavigation",
+		"naumovs.color-highlight",
+		"oven.bun-vscode",
+		"Prisma.prisma",
+		"rust-lang.rust-analyzer",
+		"tamasfe.even-better-toml",
+		"tauri-apps.tauri-vscode"
+	]
+}

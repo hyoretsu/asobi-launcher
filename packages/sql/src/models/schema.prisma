@@ -1,0 +1,27 @@
+generator client {
+    provider        = "prisma-client"
+    previewFeatures = ["nativeDistinct", "relationJoins", "views"]
+    output          = "../../out/prisma"
+}
+
+generator kysely {
+    provider            = "prisma-kysely"
+    output              = "../../out/kysely"
+    previewFeatures     = ["views"]
+    decimalTypeOverride = "number"
+    fileName            = "types.ts"
+    jsonTypeOverride    = "Record<string,any>"
+}
+
+generator prismabox {
+    provider                    = "prismabox"
+    output                      = "../../out/prismabox"
+    generateTsTypes             = true
+    typeboxImportDependencyName = "elysia"
+    typeboxImportVariableName   = "t"
+    unwrapSchemaImportName      = "UnwrapSchema"
+}
+
+datasource db {
+    provider = "postgresql"
+}
